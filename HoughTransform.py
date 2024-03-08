@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-from utils import *
+from HoughTools import *
 
 roi_defined = False
 def define_ROI(event, x, y, flags, param):
@@ -24,7 +24,7 @@ def define_ROI(event, x, y, flags, param):
         roi_defined = True
 
 
-cap = cv2.VideoCapture(r'../VOT-ball.mp4')
+cap = cv2.VideoCapture(r'../Antoine_Mug.mp4')
 
 
 ###Selection de l'objet à tracker
@@ -99,19 +99,9 @@ cv2.imshow('Selected orientations',gray_ori_masked)
 
 
 #remplissage table
+r_table = build_r_table(roi,(roi.shape[0]//2,roi.shape[1]//2))
 
 
-
-table = buildRefTable(grad_ori_masked)
-
-grad_ori_masked,grad_mag = computeGrad(clone)
-acc = matchTable(grad_ori_masked,table)
-
-_,i,j=findMaxima(acc)
-clone=cv2.circle(clone,(i,j),3,(0, 0, 255),2)
-cv2.imshow("image base",clone)
-
-cv2.imshow("acc",acc.astype(np.uint8))
 
 #Coordonnée du centre
 
@@ -125,23 +115,21 @@ while True:
     ret, frame = cap.read()
     if ret:
 
-        grad_ori_masked,grad_mag = computeGrad(frame)
+        clone = np.copy(frame)
+        gray = cv2.cvtColor(clone, cv2.COLOR_BGR2GRAY)
+        accumulator = accumulate_gradients(r_table,gray)
+        m = n_max(accumulator, 10)
+        y_points = [pt[1][0] for pt in m]
+        x_points = [pt[1][1] for pt in m]
 
-        acc = matchTable(grad_ori_masked,table)
-        # acc = matchTablePrecedent(grad_ori_masked,table,x_prec,y_prec,30,30)
-        cv2.circle(acc, (x_prec,y_prec), 3, (0, 0, 255),2)
-        cv2.rectangle(acc, (x_prec-10,y_prec-10), (x_prec+10,y_prec+10), (0, 255, 0), 2)
+        i,j = np.unravel_index(accumulator.argmax(), accumulator.shape)
 
-        #_,i,j=findMaxima(acc)
-        _,i,j=findMaximaWindow(acc,x_prec,y_prec,20,20)
-        if not(i==0 and j==0):
-            x_prec=i
-            y_prec=j
-        print(x_prec,y_prec)
-        clone=cv2.circle(frame,(i,j),3,(0, 0, 255),2)
+
+        for k in range(len(x_points)):
+            cv2.circle(clone, (x_points[k],y_points[k]), 3, (0, 0, 255),2)
         cv2.imshow("image base",clone)
 
-        cv2.imshow("acc",acc.astype(np.uint8))
+        cv2.imshow("acc",accumulator.astype(np.uint8))
 
 
         k = cv2.waitKey(60) & 0xFF
