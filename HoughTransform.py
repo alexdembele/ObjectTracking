@@ -36,21 +36,28 @@ cv2.namedWindow("First image")
 cv2.setMouseCallback("First image", define_ROI)
 
 while True:
-	# display the image and wait for a keypress
-	cv2.imshow("First image", frame)
-	key = cv2.waitKey(1) & 0xFF
-	# if the ROI is defined, draw it!
-	if (roi_defined):
-		# draw a green rectangle around the region of interest
-		cv2.rectangle(frame, (r,c), (r+h,c+w), (0, 255, 0), 2)
-	# else reset the image...
-	else:
-		frame = clone.copy()
-	# if the 'q' key is pressed, break from the loop
-	if key == ord("q"):
-	    break
+    # display the image and wait for a keypress
+    cv2.imshow("First image", frame)
+    key = cv2.waitKey(1) & 0xFF
+    # if the ROI is defined, draw it!
+    if (roi_defined):
+        # draw a green rectangle around the region of interest
+        cv2.rectangle(frame, (r,c), (r+h,c+w), (0, 255, 0), 2)
+        #Coordonnée du centre :
+        x_prec = r+h//2
+        y_prec = c+w//2
+        cv2.circle(frame, (x_prec,y_prec), 3, (0, 0, 255),2)
+
+    # else reset the image..
+    else:
+        frame = clone.copy()
+    # if the 'q' key is pressed, break from the loop
+    if key == ord("q"):
+        break
 
 track_window = (r,c,h,w)
+#Coordonnée du centre :
+
 roi = frame[c:c+w, r:r+h]
 
 
@@ -106,7 +113,7 @@ cv2.imshow("image base",clone)
 
 cv2.imshow("acc",acc.astype(np.uint8))
 
-
+#Coordonnée du centre
 
 
 #Pour améliorer le modèle, tenir compte de l'angle!!! mais augmente temps de calcul de ouf.
@@ -119,10 +126,18 @@ while True:
     if ret:
 
         grad_ori_masked,grad_mag = computeGrad(frame)
-        acc = matchTable(grad_ori_masked,table)
 
-        _,i,j=findMaxima(acc)
-        print(i,j)
+        acc = matchTable(grad_ori_masked,table)
+        # acc = matchTablePrecedent(grad_ori_masked,table,x_prec,y_prec,30,30)
+        cv2.circle(acc, (x_prec,y_prec), 3, (0, 0, 255),2)
+        cv2.rectangle(acc, (x_prec-10,y_prec-10), (x_prec+10,y_prec+10), (0, 255, 0), 2)
+
+        #_,i,j=findMaxima(acc)
+        _,i,j=findMaximaWindow(acc,x_prec,y_prec,20,20)
+        if not(i==0 and j==0):
+            x_prec=i
+            y_prec=j
+        print(x_prec,y_prec)
         clone=cv2.circle(frame,(i,j),3,(0, 0, 255),2)
         cv2.imshow("image base",clone)
 

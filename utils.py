@@ -91,6 +91,35 @@ def matchTable(im, table):
                     acc[vector[0]+x, vector[1]+y] += 1
     return acc
 
+def matchTablePrecedent(im,table,x_prec,y_prec,window_width,window_height):
+    """
+    Comme matchTable, mais effetue le matching sur une fenêtre autour du point central de la frame précédent.
+    """
+    m, n = im.shape
+    acc = np.zeros((m+50, n+50))  # acc array requires some extra space
+    def findGradient(x, y):
+        if (x != 0):
+            return int(np.rad2deg(np.arctan(int(y/x))))
+        else:
+            return 0
+    x1 = max(x_prec-window_width//2,0)
+    x2 = min(x_prec+window_width//2,m)
+    y1 = max(y_prec-window_height//2,0)
+    y2 = min(y_prec+window_height//2,n)
+    for x in range(x1, x2):
+        for y in range(y1,y2):
+
+            if im[x, y] != 0:  # boundary point
+                theta = findGradient(x, y)
+                vectors = table[theta]
+                for vector in vectors:
+                    acc[vector[0]+x, vector[1]+y] += 1
+    return acc
+
+
+
+    return acc
+
 def findMaxima(acc):
     """
     FROM : https://github.com/adl1995/generalised-hough-transform
@@ -102,5 +131,21 @@ def findMaxima(acc):
         cidx: column index of the maxval
     """
     ridx, cidx = np.unravel_index(acc.argmax(), acc.shape)
+    return [acc[ridx, cidx], ridx, cidx]
+
+def findMaximaWindow(acc,x_prec,y_prec,window_width,window_height):
+    """
+    FROM : https://github.com/adl1995/generalised-hough-transform
+
+    :param acc: accumulator array
+    :return:
+        maxval: maximum value found
+        ridx: row index of the maxval
+        cidx: column index of the maxval
+    """
+    window = acc[max(x_prec-window_width//2,0):min(x_prec+window_width//2,370),max(y_prec-window_height//2,0):min(y_prec+window_height//2,290)]
+    ridx, cidx = np.unravel_index(window.argmax(), window.shape)
+    ridx += max(x_prec-window_width//2,0)
+    cidx += max(y_prec-window_height//2,0)
     return [acc[ridx, cidx], ridx, cidx]
 
