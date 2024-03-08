@@ -2,6 +2,7 @@
 Created on May 19, 2013
 
 @author: vinnie
+@github : https://github.com/vmonaco/general-hough/
 '''
 
 import os
@@ -48,30 +49,46 @@ def accumulate_gradients(r_table, grayImage):
     gradient = gradient_orientation(edges)
 
     accumulator = np.zeros(grayImage.shape)
-    for (i,j),value in np.ndenumerate(edges):
-        if value:
-            for r in r_table[gradient[i,j]]:
-                accum_i, accum_j = i+r[0], j+r[1]
-                if accum_i < accumulator.shape[0] and accum_j < accumulator.shape[1]:
+    non_zero_indices = np.nonzero(edges)
 
-                    accumulator[int(accum_i), int(accum_j)] += 1
+    # Compute accumulation
+    for i, j in zip(non_zero_indices[0], non_zero_indices[1]):
+        for r in r_table[gradient[i, j]]:
+            accum_i, accum_j = i + r[0], j + r[1]
+            if 0 <= accum_i < accumulator.shape[0] and 0 <= accum_j < accumulator.shape[1]:
+                accumulator[accum_i, accum_j] += 1
 
     return accumulator
 
-def general_hough_closure(reference_image):
+def accumulate_gradients_Window(r_table, grayImage,x_prec,y_prec,w,h):
     '''
-    Generator function to create a closure with the reference image and origin
-    at the center of the reference image
-
-    Returns a function f, which takes a query image and returns the accumulator
+    Perform a General Hough Transform with the given image and R-table in a specific window around the position of the object in the last frame
     '''
-    referencePoint = (reference_image.shape[0]/2, reference_image.shape[1]/2)
-    r_table = build_r_table(reference_image, referencePoint)
+    edges = cv2.Canny(grayImage, MIN_CANNY_THRESHOLD,
+                  MAX_CANNY_THRESHOLD)
+    gradient = gradient_orientation(edges)
 
-    def f(query_image):
-        return accumulate_gradients(r_table, query_image)
+    accumulator = np.zeros(grayImage.shape)
+    x1 = max(0,x_prec - w//2)
+    x2 = min(len(grayImage[0]),y_prec + w//2)
+    y1 = max(0,x_prec - w//2)
+    y2 = min(len(grayImage[1]),y_prec + w//2)
 
-    return f
+    edges_copy = np.zeros_like(edges)
+    edges_copy[x1:x2+1, y1:y2+1] = edges[x1:x2+1, y1:y2+1]
+
+    non_zero_indices = np.nonzero(edges_copy)
+
+    # Compute accumulation
+    for i, j in zip(non_zero_indices[0], non_zero_indices[1]):
+        for r in r_table[gradient[i, j]]:
+            accum_i, accum_j = i + r[0], j + r[1]
+            if 0 <= accum_i < accumulator.shape[0] and 0 <= accum_j < accumulator.shape[1]:
+                accumulator[accum_i, accum_j] += 1
+
+    return accumulator
+
+
 
 def n_max(a, n):
     '''
@@ -81,59 +98,6 @@ def n_max(a, n):
     indices = (np.unravel_index(i, a.shape) for i in indices)
     return [(a[i], i) for i in indices]
 
-def test_general_hough(gh, reference_image, query):
-    '''
-    Uses a GH closure to detect shapes in an image and create nice output
-    '''
-    query_image = cv2.imread(query)
-    query_image = cv2.cvtColor(query_image, cv2.COLOR_BGR2GRAY)
-    accumulator = gh(query_image)
 
-    # plt.clf()
-    # plt.gray()
-    #
-    # fig = plt.figure()
-    # fig.add_subplot(2,2,1)
-    # plt.title('Reference image')
-    # plt.imshow(reference_image)
-    #
-    # fig.add_subplot(2,2,2)
-    # plt.title('Query image')
-    # plt.imshow(query_image)
-    #
-    # fig.add_subplot(2,2,3)
-    # plt.title('Accumulator')
-    # plt.imshow(accumulator)
-    #
-    # fig.add_subplot(2,2,4)
-    # plt.title('Detection')
-    # plt.imshow(query_image)
 
-    # top 5 results in red
-    m = n_max(accumulator, 5)
-    y_points = [pt[1][0] for pt in m]
-    x_points = [pt[1][1] for pt in m]
-    plt.scatter(x_points, y_points, marker='o', color='r')
 
-    # top result in yellow
-    i,j = np.unravel_index(accumulator.argmax(), accumulator.shape)
-    plt.scatter([j], [i], marker='x', color='y')
-
-    d,f = os.path.split(query)[0], os.path.splitext(os.path.split(query)[1])[0]
-    plt.savefig(os.path.join(d, f + '_output.png'))
-
-    return
-
-# def test():
-#     reference_image = cv2.imread("diamond.png")
-#     reference_image = cv2.cvtColor(reference_image, cv2.COLOR_BGR2GRAY)
-#     detect_s = general_hough_closure(reference_image)
-#     test_general_hough(detect_s, reference_image, "diamond_test1.png")
-#     test_general_hough(detect_s, reference_image, "diamond_test2.png")
-#     test_general_hough(detect_s, reference_image, "diamond_test3.png")
-#     test_general_hough(detect_s, reference_image, "diamond_test4.png")
-#     test_general_hough(detect_s, reference_image, "diamond_test5.png")
-#     test_general_hough(detect_s, reference_image, "diamond_test6.png")
-#
-# if __name__ == '__main__':
-#     test()

@@ -3,6 +3,8 @@ import cv2
 from HoughTools import *
 
 roi_defined = False
+width=70
+height=70
 def define_ROI(event, x, y, flags, param):
     '''
     Definition region intérêt
@@ -24,7 +26,7 @@ def define_ROI(event, x, y, flags, param):
         roi_defined = True
 
 
-cap = cv2.VideoCapture(r'../Antoine_Mug.mp4')
+cap = cv2.VideoCapture(r'../VOT-Ball.mp4')
 
 
 ###Selection de l'objet à tracker
@@ -118,18 +120,46 @@ while True:
         clone = np.copy(frame)
         gray = cv2.cvtColor(clone, cv2.COLOR_BGR2GRAY)
         accumulator = accumulate_gradients(r_table,gray)
-        m = n_max(accumulator, 10)
+        #accumulator  = accumulate_gradients_Window(r_table,gray, x_prec, y_prec,30,30)
+
+        acc = np.zeros_like(accumulator)
+        x1 = max(0,x_prec - width//2)
+        x2 = min(len(gray[0]),x_prec + width//2)
+        y1 = max(0,y_prec - height//2)
+        y2 = min(len(gray[1]),y_prec + height//2)
+        cv2.rectangle(clone, (x1,y1), (x2,y2), (0, 255, 0), 2)
+        acc[y1:y2+1, x1:x2+1] = accumulator[y1:y2+1, x1:x2+1]
+        # m = n_max(accumulator, 10, x_prec, y_prec,30,30)
+        m = n_max(acc, 10)
         y_points = [pt[1][0] for pt in m]
         x_points = [pt[1][1] for pt in m]
 
         i,j = np.unravel_index(accumulator.argmax(), accumulator.shape)
-
+        distance = np.linalg.norm([x_prec-i,y_prec-j])
+        #trouver le maximum le plus proche de la position précédente
+        print("=====================")
+        print(x_prec,y_prec)
+        x_prec_tampon = x_prec
+        y_prec_tampon = y_prec
+        for k in range(len(x_points)):
+            di = np.linalg.norm([x_prec-x_points[k],y_prec-y_points[k]])
+            print("point : ",(x_points[k],y_points[k]), " dist : ", di)
+            if di < distance:
+                x_prec_tampon = x_points[k]
+                y_prec_tampon = y_points[k]
+                distance = di
+        x_prec = x_prec_tampon
+        y_prec = y_prec_tampon
+        print(x_prec,y_prec)
 
         for k in range(len(x_points)):
             cv2.circle(clone, (x_points[k],y_points[k]), 3, (0, 0, 255),2)
+        cv2.circle(clone, (x_prec,y_prec), 3, (255, 0, 0),2)
         cv2.imshow("image base",clone)
 
-        cv2.imshow("acc",accumulator.astype(np.uint8))
+
+        accumulator_norm = accumulator*255/np.max(accumulator)
+        cv2.imshow("acc",acc.astype(np.uint8))
 
 
         k = cv2.waitKey(60) & 0xFF
