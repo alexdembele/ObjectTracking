@@ -3,8 +3,8 @@ import cv2
 from HoughTools import *
 
 roi_defined = False
-width=20
-height=20
+width=30
+height=30
 def define_ROI(event, x, y, flags, param):
     '''
     Definition region intérêt
@@ -26,7 +26,7 @@ def define_ROI(event, x, y, flags, param):
         roi_defined = True
 
 
-cap = cv2.VideoCapture(r'../VOT-Ball.mp4')
+cap = cv2.VideoCapture(r'../Antoine_Mug.mp4')
 
 
 ###Selection de l'objet à tracker
@@ -138,13 +138,13 @@ while True:
         i,j = np.unravel_index(acc.argmax(), acc.shape)
         distance = np.linalg.norm([x_prec-i,y_prec-j])
         #trouver le maximum le plus proche de la position précédente
-        print("=====================")
+        #print("=====================")
         print(x_prec,y_prec)
         x_prec_tampon = x_prec
         y_prec_tampon = y_prec
         for k in range(len(x_points)):
             di = np.linalg.norm([x_prec-x_points[k],y_prec-y_points[k]])
-            print("point : ",(x_points[k],y_points[k]), " dist : ", di)
+            #print("point : ",(x_points[k],y_points[k]), " dist : ", di)
             if di < distance:
                 x_prec_tampon = x_points[k]
                 y_prec_tampon = y_points[k]
