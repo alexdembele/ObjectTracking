@@ -3,8 +3,8 @@ import cv2
 from HoughTools import *
 
 roi_defined = False
-width=70
-height=70
+width=20
+height=20
 def define_ROI(event, x, y, flags, param):
     '''
     Definition region intérêt
@@ -134,7 +134,8 @@ while True:
         y_points = [pt[1][0] for pt in m]
         x_points = [pt[1][1] for pt in m]
 
-        i,j = np.unravel_index(accumulator.argmax(), accumulator.shape)
+        #prendre le point avec le score le plus élevé
+        i,j = np.unravel_index(acc.argmax(), acc.shape)
         distance = np.linalg.norm([x_prec-i,y_prec-j])
         #trouver le maximum le plus proche de la position précédente
         print("=====================")
@@ -148,8 +149,8 @@ while True:
                 x_prec_tampon = x_points[k]
                 y_prec_tampon = y_points[k]
                 distance = di
-        x_prec = x_prec_tampon
-        y_prec = y_prec_tampon
+        x_prec = j
+        y_prec = i
         print(x_prec,y_prec)
 
         for k in range(len(x_points)):
