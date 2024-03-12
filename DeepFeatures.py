@@ -1,7 +1,10 @@
-import numpy as np
+import torch
+
 import cv2
-from HoughTools import *
+from deepFeaturesTools import *
 from KalmanTools import *
+
+
 
 roi_defined = False
 width=50
@@ -27,8 +30,7 @@ def define_ROI(event, x, y, flags, param):
         roi_defined = True
 
 
-cap = cv2.VideoCapture(r'../Antoine_Mug.mp4')
-
+cap = cv2.VideoCapture(r'../VOT-Ball.mp4')
 
 ###Selection de l'objet à tracker
 # take first frame of the video
@@ -68,54 +70,10 @@ vy=0
 X_prec = np.array([x_prec,y_prec,vx,vy])
 P_prec= np.eye(4)
 
-###Initialisation R-table
 
+###Initialisation features_vectors
 
-gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-
-# Calculate gradient magnitude and orientation
-grad_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-grad_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-grad_mag = np.sqrt(grad_x**2 + grad_y**2)
-grad_ori = np.arctan2(grad_y, grad_x) * 180 / np.pi
-
-
-# Apply threshold to gradient magnitude
-threshold=80
-_, mask = cv2.threshold(grad_mag, threshold, 255, cv2.THRESH_BINARY)
-
-# Apply mask to orientations
-grad_ori_masked = cv2.bitwise_and(grad_ori, grad_ori, mask=mask.astype(np.uint8))
-gray_ori_masked = cv2.cvtColor(grad_ori_masked.astype(np.uint8),cv2.COLOR_GRAY2BGR)
-
-# Show the orientations where masked pixels appear in red
-grad_ori_display = cv2.applyColorMap(grad_ori_masked.astype(np.uint8), cv2.COLORMAP_HOT)
-gray_ori_masked[mask == 0] = [0, 0, 255]
-#normalization for display
-grad_mag_normalized = grad_mag*255/np.max(grad_mag)
-grad_ori_normalized = grad_ori*255/np.max(grad_ori)
-
-#display image
-cv2.imshow('Gradient Orientations', grad_ori_normalized.astype(np.uint8))
-
-cv2.imshow('Gradient Norms', grad_mag_normalized.astype(np.uint8))
-
-cv2.imshow('original', roi)
-
-cv2.imshow('Selected orientations',gray_ori_masked)
-
-
-#remplissage table
-r_table = build_r_table(roi,(roi.shape[0]//2,roi.shape[1]//2))
-
-
-
-#Coordonnée du centre
-
-
-#Pour améliorer le modèle, tenir compte de l'angle!!! mais augmente temps de calcul de ouf.
-
-
+R_vector = getDeepFeatures(roi)
 
 ###Tracking
 while True:
@@ -123,27 +81,27 @@ while True:
     if ret:
 
         clone = np.copy(frame)
-        gray = cv2.cvtColor(clone, cv2.COLOR_BGR2GRAY)
-        accumulator = accumulate_gradients(r_table,gray)
+
+        accumulator = buildAccumulator(frame,R_vector,w,h)
         #accumulator  = accumulate_gradients_Window(r_table,gray, x_prec, y_prec,30,30)
 
-        acc = np.zeros_like(accumulator)
-        x1 = max(0,x_prec - width//2)
-        x2 = min(len(gray[0]),x_prec + width//2)
-        y1 = max(0,y_prec - height//2)
-        y2 = min(len(gray[1]),y_prec + height//2)
-        cv2.rectangle(clone, (x1,y1), (x2,y2), (0, 255, 0), 2)
-        acc[y1:y2+1, x1:x2+1] = accumulator[y1:y2+1, x1:x2+1] # fenêtre de proximité
+        # acc = np.zeros_like(accumulator)
+        # x1 = max(0,x_prec - width//2)
+        # x2 = min(len(gray[0]),x_prec + width//2)
+        # y1 = max(0,y_prec - height//2)
+        # y2 = min(len(gray[1]),y_prec + height//2)
+        # cv2.rectangle(clone, (x1,y1), (x2,y2), (0, 255, 0), 2)
+        # acc[y1:y2+1, x1:x2+1] = accumulator[y1:y2+1, x1:x2+1]
         # m = n_max(accumulator, 10, x_prec, y_prec,30,30)
-        m = n_max(acc, 10)
+        m = n_min(accumulator, 10)
         y_points = [pt[1][0] for pt in m]
         x_points = [pt[1][1] for pt in m]
 
         #prendre le point avec le score le plus élevé
-        i,j = np.unravel_index(acc.argmax(), acc.shape)
+        i,j = np.unravel_index(acc.argmin(), acc.shape)
         distance = np.linalg.norm([x_prec-i,y_prec-j])
 
-        #trouver le maximum le plus proche de la position précédente
+        #trouver le minimum le plus proche de la position précédente
         #print("=====================")
         print(x_prec,y_prec)
         x_prec_tampon = x_prec
@@ -163,8 +121,8 @@ while True:
         X_prec,P_prec = correction(X_reel,X_pred,P_pred)#correction
 
         # Actualisation des positions en fonction de la méthode choisie
-        x_prec =  int(X_pred[0]) #j
-        y_prec =  int(X_pred[1]) #i
+        x_prec = int(X_pred[0])
+        y_prec = int(X_pred[1])
 
 
 
